@@ -42,45 +42,52 @@
 
 	NSString *uti = (__bridge NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)fileExt, NULL);
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		NSURL *fileURL = [NSURL URLWithString:path];
-	
-		localFile = fileURL.path;
-    
-    NSLog(@"looking for file at %@", fileURL);
-    NSFileManager *fm = [NSFileManager defaultManager];
-    if(![fm fileExistsAtPath:localFile]) {
-      NSDictionary *jsonObj = @{@"status" : @"9",
-      @"message" : @"File does not exist"};
-      CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
-        messageAsDictionary:jsonObj];
-      [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-      return;
-    }
+	BOOL isPreview = NO;
 
-		docController = [UIDocumentInteractionController  interactionControllerWithURL:fileURL];
-		docController.delegate = self;
-		docController.UTI = uti;
-
-		CGRect rect = CGRectMake(0, 0, 1000.0f, 150.0f);
-		CDVPluginResult* pluginResult = nil;
-		
-		//Abre o preview do arquivo
-		BOOL wasOpened = [docController presentPreviewAnimated: NO];
-
-		if(wasOpened) {
-			pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString: @""];
-			//NSLog(@"Success");
-		} else {
-			NSDictionary *jsonObj = [ [NSDictionary alloc]
-				initWithObjectsAndKeys :
-				@"9", @"status",
-				@"Could not handle UTI", @"message",
-				nil
-			];
-			pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:jsonObj];
+	if(contentType) {
+		if([contentType isEqualToString: @"application/pdf"]) {
+			isPreview = YES;
 		}
-		[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+		
+		if([contentType hasPrefix: @"image"]) {
+			isPreview = YES;
+		}
+	}
+
+	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			
+			NSURL *fileURL = nil;
+			
+			fileURL = [NSURL URLWithString:path];
+			
+			localFile = fileURL.path;
+
+			dispatch_async(dispatch_get_main_queue(), ^{
+
+					docController = [UIDocumentInteractionController  interactionControllerWithURL:fileURL];
+					docController.delegate = self;
+					docController.UTI = uti;
+
+					CGRect rect = CGRectMake(0, 0, 1000.0f, 150.0f);
+					CDVPluginResult* pluginResult = nil;
+					
+					//Abre o preview do arquivo
+					BOOL wasOpened = [docController presentPreviewAnimated: NO];
+
+					if(wasOpened) {
+						pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString: @""];
+						//NSLog(@"Success");
+					} else {
+						NSDictionary *jsonObj = [ [NSDictionary alloc]
+							initWithObjectsAndKeys :
+							@"9", @"status",
+							@"Could not handle UTI", @"message",
+							nil
+						];
+						pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:jsonObj];
+					}
+					[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+			});
 	});
 }
 
